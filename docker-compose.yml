@@ -1,0 +1,20 @@
+services:
+  lighthouse-dashboard:
+    image: ghcr.io/rvdbot/lighthouse-dashboard:latest
+    pull_policy: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_PATH=/app/data/lighthouse.db
+      - BASE_URL=${BASE_URL}
+      - APP_PASSWORD=${APP_PASSWORD}
+      - COOKIE_SECRET=${COOKIE_SECRET}
+      - PSI_API_KEY=${PSI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_MODEL_DEFAULT=${CLAUDE_MODEL_DEFAULT}
+      - CLAUDE_MODEL_ESCALATED=${CLAUDE_MODEL_ESCALATED}
+      - PROFILE_BASE_URL=${PROFILE_BASE_URL}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    ports:
+      - 3011:3000
