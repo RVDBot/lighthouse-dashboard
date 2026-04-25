@@ -48,6 +48,8 @@ export async function* streamTurn(input: TurnInput): AsyncGenerator<string, void
   const existingAdvice = profile ? getAdvice(input.auditId, profile.hash) : null
   const adviceBlock = existingAdvice ? `Eerder gegenereerd advies:\n${existingAdvice.markdown}` : '(nog geen eerder advies)'
 
+  // Drop orphaned user rows (placeholder created during upload but never followed
+  // by a real text turn) so we never send Claude an assistant-first sequence.
   const historyRows = db.prepare(`
     SELECT * FROM issue_chat_messages WHERE audit_id = ? ORDER BY id ASC
   `).all(input.auditId) as ChatMessageRow[]
@@ -71,6 +73,13 @@ export async function* streamTurn(input: TurnInput): AsyncGenerator<string, void
     if (row.content) content.push({ type: 'text', text: row.content })
     if (content.length === 0) continue
     messages.push({ role: row.role, content })
+  }
+
+  // Guarantee the message list starts with a user turn (Claude rejects an
+  // assistant-first sequence). If somehow we still lead with assistant —
+  // e.g., the user message was filtered above — drop the leading assistant turns.
+  while (messages.length > 0 && messages[0].role === 'assistant') {
+    messages.shift()
   }
 
   const client = getClaude()

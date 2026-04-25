@@ -42,11 +42,28 @@ export function ChatPanel({ auditId }: { auditId: string }) {
     setText('')
     setPending({ messageId: null, atts: [] })
 
-    const res = await fetch(`/api/issues/${encodeURIComponent(auditId)}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userText: currentText, pendingMessageId: currentPendingId, model }),
-    })
+    let res: Response
+    try {
+      res = await fetch(`/api/issues/${encodeURIComponent(auditId)}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userText: currentText, pendingMessageId: currentPendingId, model }),
+      })
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e)
+      setMessages(prev => prev.map(m => m.id === assistantPlaceholder.id ? { ...m, content: `Verbindingsfout: ${errMsg}` } : m))
+      setBusy(false)
+      return
+    }
+
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      const errMsg = j.error ?? `HTTP ${res.status}`
+      setMessages(prev => prev.map(m => m.id === assistantPlaceholder.id ? { ...m, content: `Fout: ${errMsg}` } : m))
+      setBusy(false)
+      return
+    }
+
     if (!res.body) { setBusy(false); return }
 
     const reader = res.body.getReader()

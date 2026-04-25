@@ -7,6 +7,22 @@ const MAX_PARALLEL = 4
 let currentScanId: number | null = null
 const progressListeners = new Set<(event: ScanProgressEvent) => void>()
 
+let recovered = false
+function recoverStaleScans() {
+  if (recovered) return
+  recovered = true
+  const db = getDb()
+  const stale = db.prepare(`SELECT id FROM scans WHERE status = 'running'`).all() as Array<{ id: number }>
+  if (stale.length === 0) return
+  const stmt = db.prepare(`UPDATE scans SET status = 'failed', finished_at = ?, error = 'Hervat na crash' WHERE id = ?`)
+  const now = Date.now()
+  const tx = db.transaction((rows: Array<{ id: number }>) => {
+    for (const r of rows) stmt.run(now, r.id)
+  })
+  tx(stale)
+  log('warn', 'scan', `Recovery: ${stale.length} stale scan(s) gemarkeerd als failed`, { ids: stale.map(s => s.id) })
+}
+
 export type ScanProgressEvent =
   | { type: 'started'; scanId: number; total: number }
   | { type: 'url-done'; scanId: number; urlId: number; strategy: Strategy; ok: boolean; error?: string }
@@ -24,17 +40,33 @@ function emit(e: ScanProgressEvent) {
   }
 }
 
-export function getRunningScanId(): number | null { return currentScanId }
+export function getRunningScanId(): number | null {
+  // Cross-check against the DB so a stale in-memory flag can't block new scans
+  // after a crash (recovery on next runScan call clears these, but a status read
+  // shouldn't lie either).
+  if (currentScanId !== null) return currentScanId
+  const row = getDb().prepare(`SELECT id FROM scans WHERE status = 'running' ORDER BY id DESC LIMIT 1`).get() as { id: number } | undefined
+  return row?.id ?? null
+}
 
 export async function runScan(trigger: 'cron' | 'manual'): Promise<number> {
-  if (currentScanId !== null) throw new Error('Scan al bezig')
-
   const db = getDb()
+  recoverStaleScans()
+
+  // Atomic claim: if anything is currently 'running' in the DB, refuse. Otherwise insert
+  // and treat the new row as the scan claim. better-sqlite3 statements are synchronous,
+  // so this whole block is a single critical section per process.
+  const claim = db.transaction((startedAt: number, trg: string): number => {
+    const existing = db.prepare(`SELECT id FROM scans WHERE status = 'running' LIMIT 1`).get() as { id: number } | undefined
+    if (existing) throw new Error('Scan al bezig')
+    const info = db.prepare(`
+      INSERT INTO scans (started_at, trigger, status) VALUES (?, ?, 'running')
+    `).run(startedAt, trg)
+    return info.lastInsertRowid as number
+  })
+
   const startedAt = Date.now()
-  const info = db.prepare(`
-    INSERT INTO scans (started_at, trigger, status) VALUES (?, ?, 'running')
-  `).run(startedAt, trigger)
-  const scanId = info.lastInsertRowid as number
+  const scanId = claim(startedAt, trigger)
   currentScanId = scanId
 
   const urls = db.prepare('SELECT * FROM urls WHERE enabled = 1 ORDER BY id').all() as UrlRow[]

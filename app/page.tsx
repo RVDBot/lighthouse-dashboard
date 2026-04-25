@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic'
 
 type CategoryKey = 'perf_score' | 'a11y_score' | 'best_practices_score' | 'seo_score'
 
+const ALLOWED_CATEGORY_COLUMNS = new Set<CategoryKey>(['perf_score', 'a11y_score', 'best_practices_score', 'seo_score'])
 const ORDER = ['home','product','category','cart','checkout']
 
 function loadLatestScan() {
@@ -50,6 +51,7 @@ function loadTopIssues(scanId: number): TopIssue[] {
 }
 
 function loadTrend(category: CategoryKey, strategy: 'mobile' | 'desktop', limit = 12): TrendPoint[] {
+  if (!ALLOWED_CATEGORY_COLUMNS.has(category)) throw new Error(`Onbekende kolom: ${category}`)
   const db = getDb()
   const rows = db.prepare(`
     SELECT s.finished_at AS t, AVG(lr.${category}) AS v
