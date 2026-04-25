@@ -3,7 +3,7 @@ node_modules/
 .env.local
 .env
 data/
-attachments/
+data/attachments/
 tsconfig.tsbuildinfo
 *.log
 .DS_Store
