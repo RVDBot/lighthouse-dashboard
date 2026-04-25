@@ -1,0 +1,134 @@
+import type Anthropic from '@anthropic-ai/sdk'
+import { getDb, type ChatMessageRow } from './db'
+import { listAttachmentsForMessage, readAttachment } from './attachments'
+import { getStoredProfile } from './profile'
+import { getAdvice } from './advice'
+import { getClaude, defaultModel, escalatedModel } from './claude'
+
+const SYSTEM_PROMPT = `Je bent een WordPress-performance-expert die stapsgewijs helpt bij het oplossen van concrete Lighthouse-issues op een specifieke WordPress+WooCommerce site. Antwoord kort en in het Nederlands. Geef exacte menupaden. Als de gebruiker een screenshot deelt, verwijs concreet naar wat je ziet (kopjes, knoppen) en zeg welke klik volgt.`
+
+export interface TurnInput {
+  auditId: string
+  userText: string
+  pendingMessageId: number | null
+  model?: 'default' | 'escalated'
+}
+
+export async function* streamTurn(input: TurnInput): AsyncGenerator<string, void, void> {
+  const db = getDb()
+  const modelName = input.model === 'escalated' ? escalatedModel() : defaultModel()
+
+  let userMsgId: number
+  if (input.pendingMessageId) {
+    db.prepare(`UPDATE issue_chat_messages SET content = ? WHERE id = ?`).run(input.userText, input.pendingMessageId)
+    userMsgId = input.pendingMessageId
+  } else {
+    const info = db.prepare(`
+      INSERT INTO issue_chat_messages (audit_id, role, content, created_at)
+      VALUES (?, 'user', ?, ?)
+    `).run(input.auditId, input.userText, Date.now())
+    userMsgId = info.lastInsertRowid as number
+  }
+  void userMsgId
+
+  const profile = getStoredProfile()
+  const profileBlock = profile
+    ? `Site-profiel:\n${JSON.stringify(profile.profile, null, 2)}`
+    : '(site-profiel nog niet beschikbaar)'
+
+  const issueRow = db.prepare(`
+    SELECT title, category, display_value, details_json
+    FROM opportunities WHERE audit_id = ? ORDER BY id DESC LIMIT 1
+  `).get(input.auditId) as { title: string; category: string; display_value: string | null; details_json: string | null } | undefined
+
+  const issueBlock = issueRow
+    ? `Issue: ${input.auditId} — ${issueRow.title}\nCategorie: ${issueRow.category}\n${issueRow.display_value ?? ''}\nDetails (top 10):\n${summariseDetails(issueRow.details_json)}`
+    : `Issue: ${input.auditId}`
+
+  const existingAdvice = profile ? getAdvice(input.auditId, profile.hash) : null
+  const adviceBlock = existingAdvice ? `Eerder gegenereerd advies:\n${existingAdvice.markdown}` : '(nog geen eerder advies)'
+
+  const historyRows = db.prepare(`
+    SELECT * FROM issue_chat_messages WHERE audit_id = ? ORDER BY id ASC
+  `).all(input.auditId) as ChatMessageRow[]
+
+  const messages: Anthropic.MessageParam[] = []
+  for (const row of historyRows) {
+    const attach = listAttachmentsForMessage(row.id)
+    const content: Anthropic.ContentBlockParam[] = []
+    for (const a of attach) {
+      const file = readAttachment(a.id)
+      if (!file) continue
+      content.push({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: a.mime_type as 'image/png' | 'image/jpeg' | 'image/webp',
+          data: file.buffer.toString('base64'),
+        },
+      })
+    }
+    if (row.content) content.push({ type: 'text', text: row.content })
+    if (content.length === 0) continue
+    messages.push({ role: row.role, content })
+  }
+
+  const client = getClaude()
+  const stream = client.messages.stream({
+    model: modelName,
+    max_tokens: 2000,
+    system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+    messages: [
+      { role: 'user', content: [
+        { type: 'text', text: profileBlock, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: issueBlock, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: adviceBlock, cache_control: { type: 'ephemeral' } },
+      ] },
+      ...messages,
+    ],
+  })
+
+  let assistantText = ''
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+      const chunk = event.delta.text
+      assistantText += chunk
+      yield chunk
+    }
+  }
+
+  db.prepare(`
+    INSERT INTO issue_chat_messages (audit_id, role, content, created_at)
+    VALUES (?, 'assistant', ?, ?)
+  `).run(input.auditId, assistantText, Date.now())
+}
+
+export function getChatHistory(auditId: string): Array<{
+  id: number
+  role: 'user' | 'assistant'
+  content: string
+  createdAt: number
+  attachments: Array<{ id: number; mime: string; size: number }>
+}> {
+  const rows = getDb().prepare(`
+    SELECT * FROM issue_chat_messages WHERE audit_id = ? ORDER BY id ASC
+  `).all(auditId) as ChatMessageRow[]
+  return rows.map(r => ({
+    id: r.id,
+    role: r.role,
+    content: r.content,
+    createdAt: r.created_at,
+    attachments: listAttachmentsForMessage(r.id).map(a => ({ id: a.id, mime: a.mime_type, size: a.size_bytes })),
+  }))
+}
+
+function summariseDetails(json: string | null): string {
+  if (!json) return '(geen details)'
+  try {
+    const parsed = JSON.parse(json) as { items?: unknown[] }
+    const items = Array.isArray(parsed.items) ? parsed.items.slice(0, 10) : []
+    return JSON.stringify(items, null, 2)
+  } catch {
+    return json.slice(0, 2000)
+  }
+}
