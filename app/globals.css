@@ -2,5 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body { background-color: #0b1220; color: #e6ecf8; }
-body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+/* Default = dark. The inline script in app/layout.tsx sets data-theme
+   based on localStorage before paint, so there's no flash. */
+:root,
+:root[data-theme="dark"] {
+  --color-bg-rgb:             11  18  32;
+  --color-surface-1-rgb:      17  27  46;
+  --color-surface-2-rgb:      26  37  64;
+  --color-surface-3-rgb:      36  48  82;
+  --color-border-rgb:         43  58  90;
+  --color-text-primary-rgb:   230 236 248;
+  --color-text-secondary-rgb: 168 179 204;
+  --color-text-tertiary-rgb:  107 122 153;
+  --color-accent-rgb:          74 163 255;
+  --color-accent-hover-rgb:    43 143 255;
+  --color-good-rgb:            34 197  94;
+  --color-warn-rgb:           245 158  11;
+  --color-bad-rgb:            239  68  68;
+}
+
+:root[data-theme="light"] {
+  --color-bg-rgb:             248 250 252;
+  --color-surface-1-rgb:      255 255 255;
+  --color-surface-2-rgb:      241 245 249;
+  --color-surface-3-rgb:      226 232 240;
+  --color-border-rgb:         203 213 225;
+  --color-text-primary-rgb:    15  23  42;
+  --color-text-secondary-rgb:  71  85 105;
+  --color-text-tertiary-rgb:  100 116 139;
+  --color-accent-rgb:          37  99 235;
+  --color-accent-hover-rgb:    29  78 216;
+  --color-good-rgb:            22 163  74;
+  --color-warn-rgb:           217 119   6;
+  --color-bad-rgb:            220  38  38;
+}
+
+html, body {
+  background-color: rgb(var(--color-bg-rgb));
+  color: rgb(var(--color-text-primary-rgb));
+}
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+}

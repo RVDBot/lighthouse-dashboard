@@ -12,7 +12,13 @@ export function TrendChart({ data, height = 80, stroke = '#4aa3ff' }: { data: Tr
           <XAxis dataKey="t" hide domain={['dataMin', 'dataMax']} />
           <YAxis hide domain={[0, 100]} />
           <Tooltip
-            contentStyle={{ background: '#111b2e', border: '1px solid #2b3a5a', borderRadius: 8, fontSize: 12 }}
+            contentStyle={{
+              background: 'rgb(var(--color-surface-1-rgb))',
+              border: '1px solid rgb(var(--color-border-rgb))',
+              color: 'rgb(var(--color-text-primary-rgb))',
+              borderRadius: 8,
+              fontSize: 12,
+            }}
             labelFormatter={(v) => new Date(v as number).toLocaleDateString('nl-NL')}
             formatter={(v) => [v, 'score']}
           />

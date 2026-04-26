@@ -1,23 +1,29 @@
 import type { Config } from 'tailwindcss'
 
+// Colors are wired through CSS variables defined in app/globals.css so that
+// switching the [data-theme] attribute on <html> flips the entire palette.
+// The `rgb(var(...) / <alpha-value>)` pattern lets Tailwind opacity modifiers
+// like `bg-good/20` keep working.
+const themeColor = (name: string) => `rgb(var(--color-${name}-rgb) / <alpha-value>)`
+
 const config: Config = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        'bg':            '#0b1220',
-        'surface-1':     '#111b2e',
-        'surface-2':     '#1a2540',
-        'surface-3':     '#243052',
-        'border':        '#2b3a5a',
-        'text-primary':  '#e6ecf8',
-        'text-secondary':'#a8b3cc',
-        'text-tertiary': '#6b7a99',
-        'accent':        '#4aa3ff',
-        'accent-hover':  '#2b8fff',
-        'good':          '#22c55e',
-        'warn':          '#f59e0b',
-        'bad':           '#ef4444',
+        'bg':             themeColor('bg'),
+        'surface-1':      themeColor('surface-1'),
+        'surface-2':      themeColor('surface-2'),
+        'surface-3':      themeColor('surface-3'),
+        'border':         themeColor('border'),
+        'text-primary':   themeColor('text-primary'),
+        'text-secondary': themeColor('text-secondary'),
+        'text-tertiary':  themeColor('text-tertiary'),
+        'accent':         themeColor('accent'),
+        'accent-hover':   themeColor('accent-hover'),
+        'good':           themeColor('good'),
+        'warn':           themeColor('warn'),
+        'bad':            themeColor('bad'),
       },
     },
   },
