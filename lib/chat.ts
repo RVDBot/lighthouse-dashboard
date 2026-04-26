@@ -102,7 +102,11 @@ export async function* streamTurn(input: TurnInput): AsyncGenerator<string, void
   const stream = client.messages.stream({
     model: modelName,
     max_tokens: 2000,
-    system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+    // System prompt isn't cached: it's well under Anthropic's minimum
+    // cacheable size, so the cache_control tag would just consume one of
+    // our four available breakpoints without saving tokens. The four
+    // breakpoints go to the four sizeable, stable user-content blocks below.
+    system: SYSTEM_PROMPT,
     messages: [
       { role: 'user', content: contextBlocks },
       ...messages,

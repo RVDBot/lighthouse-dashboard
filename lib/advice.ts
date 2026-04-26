@@ -78,7 +78,9 @@ export async function generateAdviceForIssue(opts: GenerateOptions): Promise<{ m
   const response = await client.messages.create({
     model,
     max_tokens: 2000,
-    system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+    // System prompt unsketched (see lib/chat.ts comment) — keep all four
+    // cache breakpoints for the larger stable user-content blocks.
+    system: SYSTEM_PROMPT,
     messages: [
       { role: 'user', content: userBlocks },
     ],
