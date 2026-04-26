@@ -45,7 +45,7 @@ export function AdviceBody({
   return (
     <div className="bg-surface-1 border border-border rounded-xl p-5 space-y-3">
       {body ? (
-        <div className="prose prose-invert prose-sm max-w-none">
+        <div className="prose prose-sm max-w-none">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
         </div>
       ) : (

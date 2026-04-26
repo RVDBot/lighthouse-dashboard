@@ -24,7 +24,7 @@ export function MessageBubble({ m }: { m: ChatMsg }) {
           </div>
         )}
         {m.role === 'assistant' ? (
-          <div className="prose prose-invert prose-sm max-w-none">
+          <div className="prose prose-sm max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
           </div>
         ) : (
