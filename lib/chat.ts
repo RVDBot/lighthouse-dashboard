@@ -3,7 +3,8 @@ import { getDb, type ChatMessageRow } from './db'
 import { listAttachmentsForMessage, readAttachment } from './attachments'
 import { getStoredProfile } from './profile'
 import { getAdvice } from './advice'
-import { getClaude, defaultModel, escalatedModel } from './claude'
+import { getClaude, modelByKey, defaultChatModelKey, type ModelKey } from './claude'
+import { getExternalConfig } from './external-configs'
 
 const SYSTEM_PROMPT = `Je bent een WordPress-performance-expert die stapsgewijs helpt bij het oplossen van concrete Lighthouse-issues op een specifieke WordPress+WooCommerce site. Antwoord kort en in het Nederlands. Geef exacte menupaden. Als de gebruiker een screenshot deelt, verwijs concreet naar wat je ziet (kopjes, knoppen) en zeg welke klik volgt.`
 
@@ -11,12 +12,13 @@ export interface TurnInput {
   auditId: string
   userText: string
   pendingMessageId: number | null
-  model?: 'default' | 'escalated'
+  model?: ModelKey
 }
 
 export async function* streamTurn(input: TurnInput): AsyncGenerator<string, void, void> {
   const db = getDb()
-  const modelName = input.model === 'escalated' ? escalatedModel() : defaultModel()
+  const modelKey: ModelKey = input.model ?? defaultChatModelKey()
+  const modelName = modelByKey(modelKey)
 
   let userMsgId: number
   if (input.pendingMessageId) {
@@ -47,6 +49,11 @@ export async function* streamTurn(input: TurnInput): AsyncGenerator<string, void
 
   const existingAdvice = profile ? getAdvice(input.auditId, profile.hash) : null
   const adviceBlock = existingAdvice ? `Eerder gegenereerd advies:\n${existingAdvice.markdown}` : '(nog geen eerder advies)'
+
+  const wpRocket = getExternalConfig('wp-rocket')
+  const wpRocketBlock = wpRocket
+    ? `Geüploade WP Rocket-export (huidige settings):\n${wpRocket.json_data}`
+    : null
 
   // Drop orphaned user rows (placeholder created during upload but never followed
   // by a real text turn) so we never send Claude an assistant-first sequence.
@@ -83,16 +90,21 @@ export async function* streamTurn(input: TurnInput): AsyncGenerator<string, void
   }
 
   const client = getClaude()
+  const contextBlocks: Anthropic.ContentBlockParam[] = [
+    { type: 'text', text: profileBlock, cache_control: { type: 'ephemeral' } },
+    { type: 'text', text: issueBlock,   cache_control: { type: 'ephemeral' } },
+    { type: 'text', text: adviceBlock,  cache_control: { type: 'ephemeral' } },
+  ]
+  if (wpRocketBlock) {
+    contextBlocks.push({ type: 'text', text: wpRocketBlock, cache_control: { type: 'ephemeral' } })
+  }
+
   const stream = client.messages.stream({
     model: modelName,
     max_tokens: 2000,
     system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
     messages: [
-      { role: 'user', content: [
-        { type: 'text', text: profileBlock, cache_control: { type: 'ephemeral' } },
-        { type: 'text', text: issueBlock, cache_control: { type: 'ephemeral' } },
-        { type: 'text', text: adviceBlock, cache_control: { type: 'ephemeral' } },
-      ] },
+      { role: 'user', content: contextBlocks },
       ...messages,
     ],
   })

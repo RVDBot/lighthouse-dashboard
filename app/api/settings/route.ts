@@ -2,7 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSetting, setSetting } from '@/lib/settings'
 import { log } from '@/lib/logger'
 
-const ALLOWED_KEYS = ['PSI_API_KEY', 'ANTHROPIC_API_KEY', 'CLAUDE_MODEL_DEFAULT', 'CLAUDE_MODEL_ESCALATED', 'PROFILE_BASE_URL'] as const
+const ALLOWED_KEYS = [
+  'PSI_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'CLAUDE_MODEL_DEFAULT',     // legacy, kept for backwards-compat
+  'CLAUDE_MODEL_ESCALATED',   // legacy
+  'CLAUDE_MODEL_HAIKU',
+  'CLAUDE_MODEL_SONNET',
+  'CLAUDE_MODEL_OPUS',
+  'CLAUDE_MODEL_DEFAULT_CHAT', // 'haiku' | 'sonnet' | 'opus'
+  'PROFILE_BASE_URL',
+] as const
 const SECRET_KEYS = new Set(['PSI_API_KEY', 'ANTHROPIC_API_KEY'])
 const MAX_VALUE_LEN = 2000
 

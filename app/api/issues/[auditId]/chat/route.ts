@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ aud
   const body = await req.json().catch(() => ({})) as {
     userText?: string
     pendingMessageId?: number | null
-    model?: 'default' | 'escalated'
+    model?: 'haiku' | 'sonnet' | 'opus'
   }
 
   // Validate the audit_id ever existed as an opportunity (avoids creating chat
@@ -38,11 +38,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ aud
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        const allowed = new Set(['haiku','sonnet','opus'])
+        const modelKey = allowed.has(body.model ?? '') ? body.model! : undefined
         for await (const chunk of streamTurn({
           auditId,
           userText,
           pendingMessageId,
-          model: body.model === 'escalated' ? 'escalated' : 'default',
+          model: modelKey,
         })) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk })}\n\n`))
         }

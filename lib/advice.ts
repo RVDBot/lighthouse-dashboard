@@ -1,7 +1,8 @@
 import type Anthropic from '@anthropic-ai/sdk'
 import { getDb, type OpportunityRow } from './db'
 import { getStoredProfile, refreshSiteProfile } from './profile'
-import { getClaude, defaultModel } from './claude'
+import { getClaude, defaultModel, modelByKey, type ModelKey } from './claude'
+import { getExternalConfig } from './external-configs'
 import { log } from './logger'
 
 const SYSTEM_PROMPT = `Je bent een WordPress-performance-expert. Antwoorden zijn in het Nederlands, pragmatisch, stap-voor-stap en met concrete menupaden (bijv. "WP Admin → WP Rocket → Cache"). Vermijd generieke tips; gebruik de meegegeven site-stack. Output in Markdown zonder codeblok eromheen.`
@@ -20,6 +21,7 @@ Geef stap-voor-stap uitleg:
 export interface GenerateOptions {
   auditId: string
   model?: string
+  modelKey?: ModelKey
 }
 
 export async function generateAdviceForIssue(opts: GenerateOptions): Promise<{ markdown: string; model: string; hash: string }> {
@@ -55,18 +57,30 @@ export async function generateAdviceForIssue(opts: GenerateOptions): Promise<{ m
     .replace('{url_count}', String(affectedUrls.c))
     .replace('{total_urls}', String(totalUrls))
 
-  const model = opts.model ?? defaultModel()
+  // Optional WP Rocket export — if uploaded, give the model exact visibility
+  // into which settings are on/off so its advice can reference real keys.
+  const wpRocket = getExternalConfig('wp-rocket')
+  const wpRocketBlock = wpRocket
+    ? `Geüploade WP Rocket-export (huidige settings):\n${wpRocket.json_data}`
+    : null
+
+  const model = opts.model ?? (opts.modelKey ? modelByKey(opts.modelKey) : defaultModel())
   const client = getClaude()
+
+  const userBlocks: Anthropic.ContentBlockParam[] = [
+    { type: 'text', text: `Site-profiel:\n${JSON.stringify(profile.profile, null, 2)}`, cache_control: { type: 'ephemeral' } },
+  ]
+  if (wpRocketBlock) {
+    userBlocks.push({ type: 'text', text: wpRocketBlock, cache_control: { type: 'ephemeral' } })
+  }
+  userBlocks.push({ type: 'text', text: userMsg })
 
   const response = await client.messages.create({
     model,
     max_tokens: 2000,
     system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
     messages: [
-      { role: 'user', content: [
-        { type: 'text', text: `Site-profiel:\n${JSON.stringify(profile.profile, null, 2)}`, cache_control: { type: 'ephemeral' } },
-        { type: 'text', text: userMsg },
-      ] },
+      { role: 'user', content: userBlocks },
     ],
   })
 

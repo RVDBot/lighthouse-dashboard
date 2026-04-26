@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { Globe, Server, SlidersHorizontal, ScrollText } from 'lucide-react'
+import { Globe, Server, SlidersHorizontal, ScrollText, Rocket } from 'lucide-react'
 import { UrlManager } from './UrlManager'
 import { SiteProfileView } from './SiteProfileView'
 import { ApiKeysForm } from './ApiKeysForm'
 import { ThemeToggle } from './ThemeToggle'
 import { LogsView } from './LogsView'
+import { WpRocketUpload } from './WpRocketUpload'
 
-type TabId = 'urls' | 'profile' | 'app' | 'logs'
+type TabId = 'urls' | 'profile' | 'wp-rocket' | 'app' | 'logs'
 
 interface Tab {
   id: TabId
@@ -17,10 +18,11 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { id: 'urls',    label: "URL's",       icon: Globe },
-  { id: 'profile', label: 'Site profiel', icon: Server },
-  { id: 'app',     label: 'Instellingen', icon: SlidersHorizontal },
-  { id: 'logs',    label: 'Logs',         icon: ScrollText },
+  { id: 'urls',      label: "URL's",        icon: Globe },
+  { id: 'profile',   label: 'Site profiel',  icon: Server },
+  { id: 'wp-rocket', label: 'WP Rocket',     icon: Rocket },
+  { id: 'app',       label: 'Instellingen',  icon: SlidersHorizontal },
+  { id: 'logs',      label: 'Logs',          icon: ScrollText },
 ]
 
 export function SettingsTabs() {
@@ -52,15 +54,16 @@ export function SettingsTabs() {
       </nav>
 
       <div className="min-w-0">
-        {active === 'urls'    && <Pane title="URL's">         <UrlManager /></Pane>}
-        {active === 'profile' && <Pane title="Site profiel"> <SiteProfileView /></Pane>}
-        {active === 'app'     && <Pane title="Instellingen">
+        {active === 'urls'      && <Pane title="URL's">         <UrlManager /></Pane>}
+        {active === 'profile'   && <Pane title="Site profiel"> <SiteProfileView /></Pane>}
+        {active === 'wp-rocket' && <Pane title="WP Rocket-config"> <WpRocketUpload /></Pane>}
+        {active === 'app'       && <Pane title="Instellingen">
           <div className="space-y-6">
             <Group title="Uiterlijk"><ThemeToggle /></Group>
-            <Group title="API-sleutels"><ApiKeysForm /></Group>
+            <Group title="API-sleutels & modellen"><ApiKeysForm /></Group>
           </div>
         </Pane>}
-        {active === 'logs'    && <Pane title="Logs">         <LogsView /></Pane>}
+        {active === 'logs'      && <Pane title="Logs">         <LogsView /></Pane>}
       </div>
     </div>
   )

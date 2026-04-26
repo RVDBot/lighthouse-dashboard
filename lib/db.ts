@@ -130,6 +130,13 @@ function initSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_logs_created  ON logs(created_at);
     CREATE INDEX IF NOT EXISTS idx_logs_level    ON logs(level);
     CREATE INDEX IF NOT EXISTS idx_logs_category ON logs(category);
+
+    CREATE TABLE IF NOT EXISTS external_configs (
+      kind        TEXT PRIMARY KEY,
+      json_data   TEXT NOT NULL,
+      filename    TEXT,
+      uploaded_at INTEGER NOT NULL
+    );
   `)
 }
 
@@ -227,4 +234,11 @@ export interface LogRow {
   message: string
   meta: string | null
   created_at: number
+}
+
+export interface ExternalConfigRow {
+  kind: string
+  json_data: string
+  filename: string | null
+  uploaded_at: number
 }

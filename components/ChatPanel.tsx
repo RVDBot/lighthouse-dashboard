@@ -8,7 +8,7 @@ import { ImageUploader, type PendingAttachment } from './ImageUploader'
 export function ChatPanel({ auditId }: { auditId: string }) {
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [text, setText] = useState('')
-  const [model, setModel] = useState<'default' | 'escalated'>('default')
+  const [model, setModel] = useState<'haiku' | 'sonnet' | 'opus'>('sonnet')
   const [busy, setBusy] = useState(false)
   const [pending, setPending] = useState<{ messageId: number | null; atts: PendingAttachment[] }>({ messageId: null, atts: [] })
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -22,6 +22,11 @@ export function ChatPanel({ auditId }: { auditId: string }) {
         id: m.id, role: m.role, content: m.content, attachments: m.attachments,
       })))
     })
+    // Pull the configured default chat model from Settings.
+    fetch('/api/settings').then(r => r.json()).then((j: { settings: Record<string, string> }) => {
+      const v = j.settings?.CLAUDE_MODEL_DEFAULT_CHAT
+      if (v === 'haiku' || v === 'sonnet' || v === 'opus') setModel(v)
+    }).catch(() => { /* keep default */ })
   }, [auditId])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
@@ -95,9 +100,10 @@ export function ChatPanel({ auditId }: { auditId: string }) {
     <div className="bg-surface-1 border border-border rounded-xl flex flex-col min-h-[500px]">
       <div className="flex items-center justify-between px-4 py-2 border-b border-border text-xs text-text-tertiary">
         <span>Chat</span>
-        <select value={model} onChange={e => setModel(e.target.value as 'default' | 'escalated')} className="bg-surface-2 text-text-primary text-xs px-2 py-1 rounded border border-border">
-          <option value="default">Haiku (snel)</option>
-          <option value="escalated">Opus (diepgaand)</option>
+        <select value={model} onChange={e => setModel(e.target.value as 'haiku' | 'sonnet' | 'opus')} className="bg-surface-2 text-text-primary text-xs px-2 py-1 rounded border border-border">
+          <option value="haiku">Haiku (snel)</option>
+          <option value="sonnet">Sonnet (gebalanceerd)</option>
+          <option value="opus">Opus (diepgaand)</option>
         </select>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-3">

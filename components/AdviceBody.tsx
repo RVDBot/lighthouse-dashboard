@@ -22,7 +22,7 @@ export function AdviceBody({
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
-  async function regenerate(mode: 'default' | 'escalated') {
+  async function regenerate(mode: 'haiku' | 'sonnet' | 'opus') {
     setBusy(true); setErr(null)
     try {
       const r = await fetch(`/api/issues/${encodeURIComponent(auditId)}/regenerate`, {
@@ -57,11 +57,14 @@ export function AdviceBody({
           {model ? `${model}` : ''}{generatedAt ? ` · ${new Date(generatedAt).toLocaleString('nl-NL')}` : ''}
         </div>
         <div className="flex gap-2">
-          <button disabled={busy} onClick={() => regenerate('default')} className="text-xs px-2 py-1 rounded bg-surface-3 hover:bg-surface-2 text-text-primary flex items-center gap-1 disabled:opacity-50">
-            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} Regenereer
+          <button disabled={busy} onClick={() => regenerate('haiku')} className="text-xs px-2 py-1 rounded bg-surface-3 hover:bg-surface-2 text-text-primary flex items-center gap-1 disabled:opacity-50">
+            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} Haiku
           </button>
-          <button disabled={busy} onClick={() => regenerate('escalated')} className="text-xs px-2 py-1 rounded bg-accent hover:bg-accent-hover text-white flex items-center gap-1 disabled:opacity-50">
-            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} Met Opus
+          <button disabled={busy} onClick={() => regenerate('sonnet')} className="text-xs px-2 py-1 rounded bg-surface-3 hover:bg-surface-2 text-text-primary flex items-center gap-1 disabled:opacity-50">
+            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} Sonnet
+          </button>
+          <button disabled={busy} onClick={() => regenerate('opus')} className="text-xs px-2 py-1 rounded bg-accent hover:bg-accent-hover text-white flex items-center gap-1 disabled:opacity-50">
+            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} Opus
           </button>
         </div>
       </div>
