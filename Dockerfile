@@ -16,6 +16,12 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Build-time metadata — passed in by GitHub Actions, surfaced in Settings.
+ARG GIT_HASH=dev
+ARG BUILD_TIME=local
+ENV GIT_HASH=$GIT_HASH
+ENV BUILD_TIME=$BUILD_TIME
+
 RUN mkdir -p /app/data /app/data/attachments
 
 COPY --from=builder /app/public ./public

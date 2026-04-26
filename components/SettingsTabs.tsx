@@ -9,6 +9,13 @@ import { ThemeToggle } from './ThemeToggle'
 import { LogsView } from './LogsView'
 import { WpRocketUpload } from './WpRocketUpload'
 
+interface VersionInfo {
+  version: string
+  gitHash: string | null
+  gitHashShort: string | null
+  buildTime: string | null
+}
+
 type TabId = 'urls' | 'profile' | 'wp-rocket' | 'app' | 'logs'
 
 interface Tab {
@@ -25,12 +32,12 @@ const TABS: Tab[] = [
   { id: 'logs',      label: 'Logs',          icon: ScrollText },
 ]
 
-export function SettingsTabs() {
+export function SettingsTabs({ version }: { version?: VersionInfo }) {
   const [active, setActive] = useState<TabId>('urls')
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6">
-      <nav className="bg-surface-1 border border-border rounded-xl p-2 h-fit">
+      <nav className="bg-surface-1 border border-border rounded-xl p-2 h-fit flex flex-col">
         <ul className="space-y-1">
           {TABS.map(tab => {
             const Icon = tab.icon
@@ -51,6 +58,7 @@ export function SettingsTabs() {
             )
           })}
         </ul>
+        {version && <VersionFooter v={version} />}
       </nav>
 
       <div className="min-w-0">
@@ -85,4 +93,31 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
       {children}
     </div>
   )
+}
+
+function VersionFooter({ v }: { v: VersionInfo }) {
+  const repoUrl = v.gitHash ? `https://github.com/RVDBot/lighthouse-dashboard/commit/${v.gitHash}` : null
+  return (
+    <div className="text-[11px] text-text-tertiary mt-3 pt-3 border-t border-border px-2 space-y-0.5 leading-snug">
+      <div>v{v.version}</div>
+      {v.gitHashShort && (
+        repoUrl ? (
+          <a href={repoUrl} target="_blank" rel="noopener" className="block font-mono hover:text-accent transition-colors" title={v.gitHash ?? ''}>
+            {v.gitHashShort}
+          </a>
+        ) : (
+          <div className="font-mono">{v.gitHashShort}</div>
+        )
+      )}
+      {v.buildTime && <div title={v.buildTime}>{formatBuildTime(v.buildTime)}</div>}
+    </div>
+  )
+}
+
+function formatBuildTime(iso: string): string {
+  try {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return iso
+    return d.toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+  } catch { return iso }
 }

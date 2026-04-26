@@ -31,3 +31,4 @@ jobs:
           build-args: |
             BUILDKIT_PROGRESS=plain
             GIT_HASH=${{ github.sha }}
+            BUILD_TIME=${{ github.event.head_commit.timestamp }}
