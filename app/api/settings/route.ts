@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSetting, setSetting } from '@/lib/settings'
+import { log } from '@/lib/logger'
 
 const ALLOWED_KEYS = ['PSI_API_KEY', 'ANTHROPIC_API_KEY', 'CLAUDE_MODEL_DEFAULT', 'CLAUDE_MODEL_ESCALATED', 'PROFILE_BASE_URL'] as const
 const SECRET_KEYS = new Set(['PSI_API_KEY', 'ANTHROPIC_API_KEY'])
@@ -22,6 +23,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({})) as Record<string, unknown>
+  const updated: string[] = []
   for (const [k, v] of Object.entries(body)) {
     if (!(ALLOWED_KEYS as readonly string[]).includes(k)) continue
     if (typeof v !== 'string') continue
@@ -29,6 +31,8 @@ export async function POST(req: NextRequest) {
     // Don't overwrite a stored secret with the masked placeholder coming back from the form.
     if (SECRET_KEYS.has(k) && v.startsWith('••••')) continue
     setSetting(k, v)
+    updated.push(k)
   }
+  if (updated.length > 0) log('info', 'systeem', 'Settings bijgewerkt', { keys: updated })
   return NextResponse.json({ ok: true })
 }

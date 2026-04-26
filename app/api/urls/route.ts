@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb, type UrlRow, type Language, type PageType } from '@/lib/db'
+import { log } from '@/lib/logger'
 
 const LANGS: readonly Language[] = ['nl','en','de','fr','es','it']
 const PAGE_TYPES: readonly PageType[] = ['home','product','category','cart','checkout']
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest) {
       INSERT INTO urls (url, label, language, page_type, enabled, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(url, label, language, page_type, enabled, Date.now())
+    log('info', 'systeem', `URL toegevoegd: ${label}`, { id: info.lastInsertRowid, url, language, page_type })
     return NextResponse.json({ id: info.lastInsertRowid, ok: true })
   } catch (e) {
     return NextResponse.json({ error: 'URL bestaat al of DB-fout', detail: e instanceof Error ? e.message : String(e) }, { status: 409 })

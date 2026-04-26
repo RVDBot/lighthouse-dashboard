@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb, type UrlRow, type Language, type PageType } from '@/lib/db'
+import { log } from '@/lib/logger'
 
 const LANGS: readonly Language[] = ['nl','en','de','fr','es','it']
 const PAGE_TYPES: readonly PageType[] = ['home','product','category','cart','checkout']
@@ -37,11 +38,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (sets.length === 0) return NextResponse.json({ ok: true })
   vals.push(numId)
   getDb().prepare(`UPDATE urls SET ${sets.join(', ')} WHERE id = ?`).run(...vals)
+  log('info', 'systeem', `URL bijgewerkt #${numId}`, { fields: sets.map(s => s.split(' = ')[0]) })
   return NextResponse.json({ ok: true })
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  getDb().prepare('DELETE FROM urls WHERE id = ?').run(parseInt(id, 10))
+  const numId = parseInt(id, 10)
+  getDb().prepare('DELETE FROM urls WHERE id = ?').run(numId)
+  log('info', 'systeem', `URL verwijderd #${numId}`)
   return NextResponse.json({ ok: true })
 }

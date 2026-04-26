@@ -118,6 +118,18 @@ function initSchema(db: Database.Database) {
       hash         TEXT NOT NULL,
       refreshed_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS logs (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      level      TEXT NOT NULL,
+      category   TEXT NOT NULL,
+      message    TEXT NOT NULL,
+      meta       TEXT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_logs_created  ON logs(created_at);
+    CREATE INDEX IF NOT EXISTS idx_logs_level    ON logs(level);
+    CREATE INDEX IF NOT EXISTS idx_logs_category ON logs(category);
   `)
 }
 
@@ -206,4 +218,13 @@ export interface SiteProfileRow {
   json_data: string
   hash: string
   refreshed_at: number
+}
+
+export interface LogRow {
+  id: number
+  level: 'info' | 'warn' | 'error'
+  category: string
+  message: string
+  meta: string | null
+  created_at: number
 }
