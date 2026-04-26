@@ -12,7 +12,11 @@ export function setSetting(key: string, value: string): void {
   `).run(key, value)
 }
 
-/** Reads from env first, then the settings table. */
+/** Reads from env first, then the settings table. Empty/whitespace-only
+ *  values are treated as "not set" so callers' `?? fallback` patterns work. */
 export function getConfig(key: string): string | null {
-  return process.env[key] ?? getSetting(key)
+  const raw = process.env[key] ?? getSetting(key)
+  if (raw === null || raw === undefined) return null
+  const trimmed = raw.trim()
+  return trimmed.length > 0 ? trimmed : null
 }
