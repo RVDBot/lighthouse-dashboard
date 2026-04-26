@@ -73,10 +73,35 @@ async function fetchWithRetry(url: string): Promise<unknown> {
     res = await attempt()
   }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`PSI ${res.status}: ${text.slice(0, 200)}`)
+    const raw = await res.text().catch(() => '')
+    let parsed: unknown = null
+    try { parsed = JSON.parse(raw) } catch { /* not JSON */ }
+    const apiErr = parsed && typeof parsed === 'object' && 'error' in parsed
+      ? (parsed as { error: { message?: string; status?: string; errors?: unknown } }).error
+      : null
+    const summary = apiErr?.message ?? raw.slice(0, 500) ?? `HTTP ${res.status}`
+    log('error', 'psi', `PSI ${res.status}: ${summary}`, {
+      status: res.status,
+      apiErrorStatus: apiErr?.status ?? null,
+      apiErrors: apiErr?.errors ?? null,
+      bodyRaw: raw,
+    })
+    throw new PsiError(res.status, summary, parsed, raw)
   }
   return await res.json()
+}
+
+export class PsiError extends Error {
+  status: number
+  body: unknown
+  raw: string
+  constructor(status: number, summary: string, body: unknown, raw: string) {
+    super(`PSI ${status}: ${summary}`)
+    this.name = 'PsiError'
+    this.status = status
+    this.body = body
+    this.raw = raw
+  }
 }
 
 function parsePsiResponse(body: unknown): PsiRunResult {

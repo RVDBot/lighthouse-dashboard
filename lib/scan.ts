@@ -1,5 +1,5 @@
 import { getDb, type UrlRow, type Strategy } from './db'
-import { runPsi, type PsiRunResult } from './psi'
+import { runPsi, type PsiRunResult, PsiError } from './psi'
 import { log } from './logger'
 
 const MAX_PARALLEL = 4
@@ -95,7 +95,18 @@ export async function runScan(trigger: 'cron' | 'manual'): Promise<number> {
         } catch (e) {
           failed++
           const msg = e instanceof Error ? e.message : String(e)
-          log('error', 'scan', 'PSI run mislukt', { urlId: task.url.id, strategy: task.strategy, error: msg })
+          const meta: Record<string, unknown> = {
+            urlId: task.url.id,
+            url: task.url.url,
+            strategy: task.strategy,
+            error: msg,
+          }
+          if (e instanceof PsiError) {
+            meta.psiStatus = e.status
+            meta.psiBody = e.body
+            meta.psiRawTail = e.raw.slice(-1000) // last 1k chars in case body is huge
+          }
+          log('error', 'scan', 'PSI run mislukt', meta)
           emit({ type: 'url-done', scanId, urlId: task.url.id, strategy: task.strategy, ok: false, error: msg })
         }
       }
