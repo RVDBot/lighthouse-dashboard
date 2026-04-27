@@ -1,5 +1,6 @@
 import './globals.css'
 import type { Metadata, Viewport } from 'next'
+import { cookies } from 'next/headers'
 
 export const metadata: Metadata = {
   title: 'Lighthouse Dashboard',
@@ -8,24 +9,15 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1 }
 
-// Set data-theme synchronously before first paint to avoid a flash of wrong theme.
-const themeBootstrap = `
-(function(){
-  try {
-    var t = localStorage.getItem('theme');
-    document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
-  } catch(_) {
-    document.documentElement.setAttribute('data-theme', 'dark');
-  }
-})();
-`.trim()
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Read the theme cookie server-side and bake the data-theme attribute into
+  // the rendered HTML. Survives deploys, hydration, and cleared localStorage.
+  const cookieStore = await cookies()
+  const themeCookie = cookieStore.get('lh_theme')?.value
+  const dataTheme = themeCookie === 'light' ? 'light' : 'dark'
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="nl" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
-      </head>
+    <html lang="nl" data-theme={dataTheme}>
       <body>{children}</body>
     </html>
   )

@@ -5,12 +5,27 @@ import { Moon, Sun } from 'lucide-react'
 
 type Theme = 'dark' | 'light'
 
+const ONE_YEAR_S = 365 * 24 * 60 * 60
+
+function readThemeCookie(): Theme | null {
+  if (typeof document === 'undefined') return null
+  const m = document.cookie.match(/(?:^|;\s*)lh_theme=(light|dark)/)
+  return m ? (m[1] as Theme) : null
+}
+
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('dark')
 
   useEffect(() => {
-    const stored = (typeof window !== 'undefined' ? localStorage.getItem('theme') : null) as Theme | null
-    if (stored === 'light' || stored === 'dark') setTheme(stored)
+    // Cookie is the source of truth (server reads it on the next render);
+    // localStorage and the data-theme attribute are kept in sync as fallbacks.
+    const fromCookie = readThemeCookie()
+    if (fromCookie) {
+      setTheme(fromCookie)
+      return
+    }
+    const fromStorage = (typeof window !== 'undefined' ? localStorage.getItem('theme') : null) as Theme | null
+    if (fromStorage === 'light' || fromStorage === 'dark') setTheme(fromStorage)
     else {
       const attr = document.documentElement.getAttribute('data-theme') as Theme | null
       if (attr === 'light' || attr === 'dark') setTheme(attr)
@@ -21,6 +36,8 @@ export function ThemeToggle() {
     setTheme(next)
     document.documentElement.setAttribute('data-theme', next)
     try { localStorage.setItem('theme', next) } catch { /* private mode etc */ }
+    // Cookie is what the server reads on the next page load; max-age = 1y.
+    document.cookie = `lh_theme=${next}; path=/; max-age=${ONE_YEAR_S}; samesite=lax${location.protocol === 'https:' ? '; secure' : ''}`
   }
 
   const baseBtn = 'flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors'
