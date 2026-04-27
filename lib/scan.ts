@@ -7,12 +7,18 @@ const MAX_PARALLEL = 4
 let currentScanId: number | null = null
 const progressListeners = new Set<(event: ScanProgressEvent) => void>()
 
-let recovered = false
+/**
+ * Mark any 'running' scan rows as 'failed' UNLESS they belong to the scan
+ * actively running in this process. Idempotent — safe to call on every
+ * status read, every runScan(), and at boot. Skips the SELECT cost when
+ * there's nothing to recover (the SELECT itself is cheap, but the UPDATE
+ * branch only runs when there's actual work).
+ */
 export function recoverStaleScans() {
-  if (recovered) return
-  recovered = true
   const db = getDb()
-  const stale = db.prepare(`SELECT id FROM scans WHERE status = 'running'`).all() as Array<{ id: number }>
+  const stale = currentScanId !== null
+    ? db.prepare(`SELECT id FROM scans WHERE status = 'running' AND id != ?`).all(currentScanId) as Array<{ id: number }>
+    : db.prepare(`SELECT id FROM scans WHERE status = 'running'`).all() as Array<{ id: number }>
   if (stale.length === 0) return
   const stmt = db.prepare(`UPDATE scans SET status = 'failed', finished_at = ?, error = 'Hervat na crash' WHERE id = ?`)
   const now = Date.now()
