@@ -2,10 +2,15 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return
 
   const { getDb } = await import('./lib/db')
-  const { runScan, getRunningScanId } = await import('./lib/scan')
+  const { runScan, getRunningScanId, recoverStaleScans } = await import('./lib/scan')
   const profileMod = await import('./lib/profile')
   const refreshSiteProfile = (profileMod as { refreshSiteProfile?: (() => Promise<unknown>) | null }).refreshSiteProfile ?? null
   const { log } = await import('./lib/logger')
+
+  // Container just (re)started — any scan that was 'running' in the DB is
+  // by definition stale (its process is gone). Mark them failed so the UI
+  // doesn't sit forever waiting on a finished event.
+  recoverStaleScans()
 
   const HOUR_MS = 60 * 60 * 1000
   const WEEK_MS = 7 * 24 * HOUR_MS

@@ -8,7 +8,7 @@ let currentScanId: number | null = null
 const progressListeners = new Set<(event: ScanProgressEvent) => void>()
 
 let recovered = false
-function recoverStaleScans() {
+export function recoverStaleScans() {
   if (recovered) return
   recovered = true
   const db = getDb()
@@ -42,9 +42,12 @@ function emit(e: ScanProgressEvent) {
 
 export function getRunningScanId(): number | null {
   // Cross-check against the DB so a stale in-memory flag can't block new scans
-  // after a crash (recovery on next runScan call clears these, but a status read
-  // shouldn't lie either).
+  // after a crash. Run recovery first — if no scan is actually running in this
+  // process, the row in the DB is by definition stale and should be flipped
+  // to 'failed' so the UI doesn't sit forever waiting for a finished event
+  // that will never arrive.
   if (currentScanId !== null) return currentScanId
+  recoverStaleScans()
   const row = getDb().prepare(`SELECT id FROM scans WHERE status = 'running' ORDER BY id DESC LIMIT 1`).get() as { id: number } | undefined
   return row?.id ?? null
 }
