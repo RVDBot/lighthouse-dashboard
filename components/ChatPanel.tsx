@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Send, Loader2 } from 'lucide-react'
+import { Send, Loader2, Trash2 } from 'lucide-react'
 import { MessageBubble, type ChatMsg } from './MessageBubble'
 import { ImageUploader, type PendingAttachment } from './ImageUploader'
 
@@ -96,15 +96,40 @@ export function ChatPanel({ auditId }: { auditId: string }) {
     setBusy(false)
   }
 
+  async function clearChat() {
+    if (messages.length === 0) return
+    const ok = confirm(`Chat wissen? ${messages.length} bericht${messages.length === 1 ? '' : 'en'} en alle bijlagen worden verwijderd.`)
+    if (!ok) return
+    setBusy(true)
+    try {
+      await fetch(`/api/issues/${encodeURIComponent(auditId)}/chat`, { method: 'DELETE' })
+      setMessages([])
+      setPending({ messageId: null, atts: [] })
+      setText('')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="bg-surface-1 border border-border rounded-xl flex flex-col min-h-[500px]">
       <div className="flex items-center justify-between px-4 py-2 border-b border-border text-xs text-text-tertiary">
         <span>Chat</span>
-        <select value={model} onChange={e => setModel(e.target.value as 'haiku' | 'sonnet' | 'opus')} className="bg-surface-2 text-text-primary text-xs px-2 py-1 rounded border border-border">
-          <option value="haiku">Haiku (snel)</option>
-          <option value="sonnet">Sonnet (gebalanceerd)</option>
-          <option value="opus">Opus (diepgaand)</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <select value={model} onChange={e => setModel(e.target.value as 'haiku' | 'sonnet' | 'opus')} className="bg-surface-2 text-text-primary text-xs px-2 py-1 rounded border border-border">
+            <option value="haiku">Haiku (snel)</option>
+            <option value="sonnet">Sonnet (gebalanceerd)</option>
+            <option value="opus">Opus (diepgaand)</option>
+          </select>
+          <button
+            onClick={clearChat}
+            disabled={busy || messages.length === 0}
+            className="text-xs flex items-center gap-1 bg-surface-2 hover:bg-bad/10 hover:text-bad text-text-tertiary px-2 py-1 rounded border border-border disabled:opacity-40"
+            title={messages.length === 0 ? 'Chat is al leeg' : 'Wis deze chat-historie'}
+          >
+            <Trash2 className="w-3 h-3" /> Nieuwe chat
+          </button>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.map(m => <MessageBubble key={m.id} m={m} />)}

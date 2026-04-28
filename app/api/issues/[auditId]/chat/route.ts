@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { getChatHistory, streamTurn } from '@/lib/chat'
+import { getChatHistory, streamTurn, clearChatHistory } from '@/lib/chat'
 import { log } from '@/lib/logger'
 
 export const runtime = 'nodejs'
@@ -10,6 +10,13 @@ const MAX_USER_TEXT = 10_000
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ auditId: string }> }) {
   const { auditId } = await params
   return NextResponse.json({ messages: getChatHistory(auditId) })
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ auditId: string }> }) {
+  const { auditId } = await params
+  const result = await clearChatHistory(auditId)
+  log('info', 'chat', `Chat-historie gewist voor ${auditId}`, result)
+  return NextResponse.json({ ok: true, ...result })
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ auditId: string }> }) {

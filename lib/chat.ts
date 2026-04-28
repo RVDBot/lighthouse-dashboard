@@ -147,6 +147,36 @@ export function getChatHistory(auditId: string): Array<{
   }))
 }
 
+/**
+ * Wipes all chat messages + attachment rows for an audit_id, AND deletes the
+ * corresponding files from disk. Returns counts so the UI can confirm what
+ * happened. Foreign-key cascade on chat_attachments handles the row delete;
+ * we explicitly read+unlink the files first so nothing orphans on disk.
+ */
+export async function clearChatHistory(auditId: string): Promise<{ messages: number; attachments: number }> {
+  const path = await import('path')
+  const fs = await import('fs')
+
+  const db = getDb()
+  const msgIds = (db.prepare(`SELECT id FROM issue_chat_messages WHERE audit_id = ?`).all(auditId) as Array<{ id: number }>).map(r => r.id)
+  if (msgIds.length === 0) return { messages: 0, attachments: 0 }
+
+  const placeholders = msgIds.map(() => '?').join(',')
+  const attachments = db.prepare(`SELECT file_path FROM chat_attachments WHERE chat_message_id IN (${placeholders})`).all(...msgIds) as Array<{ file_path: string }>
+
+  const dbPath = process.env.DATABASE_PATH ?? path.join(process.cwd(), 'data', 'lighthouse.db')
+  const attachDir = path.join(path.dirname(path.resolve(dbPath)), 'attachments')
+
+  for (const a of attachments) {
+    try { fs.unlinkSync(path.join(attachDir, a.file_path)) } catch { /* file already gone, ignore */ }
+  }
+
+  // Delete messages — cascades to chat_attachments rows.
+  db.prepare(`DELETE FROM issue_chat_messages WHERE audit_id = ?`).run(auditId)
+
+  return { messages: msgIds.length, attachments: attachments.length }
+}
+
 function summariseDetails(json: string | null): string {
   if (!json) return '(geen details)'
   try {
